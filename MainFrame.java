@@ -1,217 +1,256 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.io.*;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
 
 public class MainFrame extends JFrame {
-    private JPanel cardPanel; // Panel that holds different screens
     private CardLayout cardLayout;
+    private JPanel mainContentPanel;
     private DefaultListModel<String> taskListModel;
-    
-    // Theme Colors
-    private Color sidebarColor = new Color(43, 47, 59);
-    private Color activePanelColor = Color.WHITE;
-    private Color textColor = Color.BLACK;
+    private JLabel clockLabel;
+    private JProgressBar efficiencyBar;
+    private JLabel pendingCountLabel;
+    private final String FILE_PATH = "tasks.txt";
 
     public MainFrame() {
-        // 1. Basic Window Setup
-        setTitle("Personal Productivity Dashboard v2.0");
+        setTitle("Personal Productivity Suite v3.0 - Ultimate Edition");
         setSize(900, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
+
+        // Core Layout Setup
         setLayout(new BorderLayout());
+        cardLayout = new CardLayout();
+        mainContentPanel = new JPanel(cardLayout);
 
-        // 2. Sidebar Navigation Panel
+        // Task Data Model & Persistence
+        taskListModel = new DefaultListModel<>();
+        loadTasksFromFile();
+
+        // 1. Sidebar Panel Navigation
         JPanel sidebar = new JPanel();
-        sidebar.setBackground(sidebarColor);
+        sidebar.setBackground(new Color(43, 47, 54));
         sidebar.setPreferredSize(new Dimension(220, 600));
-        sidebar.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 20));
+        sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
 
-        JLabel titleLabel = new JLabel("WORKSPACE");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 18));
+        JLabel titleLabel = new JLabel("WORKSPACE Pro");
         titleLabel.setForeground(Color.WHITE);
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 20));
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(20, 20, 30, 20));
         sidebar.add(titleLabel);
 
-        // Sidebar Buttons
-        JButton btnDashboard = createSidebarButton("Dashboard");
-        JButton btnTasks = createSidebarButton("Tasks Tracker");
-        JButton btnAnalytics = createSidebarButton("Analytics");
-        JButton btnSettings = createSidebarButton("Settings");
+        sidebar.add(createNavButton("Dashboard", "DashboardPanel"));
+        sidebar.add(Box.createRigidArea(new Dimension(0, 15)));
+        sidebar.add(createNavButton("Tasks Tracker", "TasksPanel"));
+        sidebar.add(Box.createRigidArea(new Dimension(0, 15)));
+        sidebar.add(createNavButton("Analytics", "AnalyticsPanel"));
+        sidebar.add(Box.createRigidArea(new Dimension(0, 15)));
+        sidebar.add(createNavButton("Settings", "SettingsPanel"));
 
-        sidebar.add(btnDashboard);
-        sidebar.add(btnTasks);
-        sidebar.add(btnAnalytics);
-        sidebar.add(btnSettings);
         add(sidebar, BorderLayout.WEST);
 
-        // 3. Main Content Panel with CardLayout (Crucial for switching tabs)
-        cardLayout = new CardLayout();
-        cardPanel = new JPanel(cardLayout);
+        // 2. Individual Sub-Panels Creation
+        mainContentPanel.add(createDashboardPanel(), "DashboardPanel");
+        mainContentPanel.add(createTasksPanel(), "TasksPanel");
+        mainContentPanel.add(createAnalyticsPanel(), "AnalyticsPanel");
+        mainContentPanel.add(createSettingsPanel(), "SettingsPanel");
 
-        // Creating different views
-        JPanel dashboardPanel = createWelcomePanel();
-        JPanel tasksPanel = createTasksPanel();
-        JPanel analyticsPanel = createAnalyticsPanel();
-        JPanel settingsPanel = createSettingsPanel();
+        add(mainContentPanel, BorderLayout.CENTER);
 
-        // Adding views to the card container
-        cardPanel.add(dashboardPanel, "Dashboard");
-        cardPanel.add(tasksPanel, "Tasks");
-        cardPanel.add(analyticsPanel, "Analytics");
-        cardPanel.add(settingsPanel, "Settings");
-
-        add(cardPanel, BorderLayout.CENTER);
-
-        // 4. Button Action Listeners for switching tabs
-        btnDashboard.addActionListener(e -> cardLayout.show(cardPanel, "Dashboard"));
-        btnTasks.addActionListener(e -> cardLayout.show(cardPanel, "Tasks"));
-        btnAnalytics.addActionListener(e -> {
-            // Refresh stats before showing analytics
-            cardPanel.remove(analyticsPanel);
-            cardPanel.add(createAnalyticsPanel(), "Analytics");
-            cardLayout.show(cardPanel, "Analytics");
-        });
-        btnSettings.addActionListener(e -> cardLayout.show(cardPanel, "Settings"));
+        // Start Live Clock Thread Engine
+        startClockEngine();
+        updateAnalyticsMetrics();
     }
 
-    // Helper to create modern styled sidebar buttons
-    private JButton createSidebarButton(String text) {
-        JButton button = new JButton(text);
-        button.setPreferredSize(new Dimension(190, 40));
-        button.setFocusPainted(false);
-        button.setFont(new Font("Arial", Font.PLAIN, 14));
-        button.setBackground(Color.WHITE);
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        return button;
+    private JButton createNavButton(String text, String panelName) {
+        JButton btn = new JButton(text);
+        btn.setMaximumSize(new Dimension(190, 40));
+        btn.setFont(new Font("Arial", Font.PLAIN, 15));
+        btn.setFocusPainted(false);
+        btn.addActionListener(e -> cardLayout.show(mainContentPanel, panelName));
+        return btn;
     }
 
-    // TAB 1: Welcome / Dashboard Overview
-    private JPanel createWelcomePanel() {
+    // --- TAB 1: DASHBOARD PANEL WITH LIVE CLOCK (FIXED HTML) ---
+    private JPanel createDashboardPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(activePanelColor);
-        JLabel label = new JLabel("<html><center><h1>Welcome to Your Productivity Suite</h1><p>Select 'Tasks Tracker' from the sidebar to manage your day.</p></center></html>");
-        label.setFont(new Font("Arial", Font.PLAIN, 16));
-        label.setForeground(textColor);
-        panel.add(label);
+        panel.setBackground(Color.WHITE);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = GridBagConstraints.RELATIVE;
+        gbc.insets = new Insets(12, 12, 12, 12);
+
+        JLabel welcomeLabel = new JLabel("<html><center><h1 style='font-family:Arial; margin:0;'>Welcome to Your Productivity Suite</h1></center></html>", JLabel.CENTER);
+        panel.add(welcomeLabel, gbc);
+
+        JLabel subLabel = new JLabel("<html><center><p style='font-family:Arial; font-size:12px; color:gray; margin:0;'>Track your progress, build your brand, stay focused.</p></center></html>", JLabel.CENTER);
+        panel.add(subLabel, gbc);
+
+        panel.add(Box.createVerticalStrut(15), gbc);
+
+        clockLabel = new JLabel("", JLabel.CENTER);
+        clockLabel.setFont(new Font("Monospaced", Font.BOLD, 32));
+        clockLabel.setForeground(new Color(25, 118, 210));
+        panel.add(clockLabel, gbc);
+
         return panel;
     }
 
-    // TAB 2: The Core Task Management System
+    // --- TAB 2: TASKS TRACKER WITH LOCAL STORAGE ---
     private JPanel createTasksPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(activePanelColor);
+        panel.setBackground(Color.WHITE);
 
-        // Header
-        JLabel headerLabel = new JLabel(" Quick Overview / Task Tracker", JLabel.LEFT);
-        headerLabel.setFont(new Font("Arial", Font.BOLD, 22));
-        headerLabel.setBorder(BorderFactory.createEmptyBorder(15, 10, 15, 10));
-        headerLabel.setForeground(textColor);
-        panel.add(headerLabel, BorderLayout.NORTH);
+        JLabel header = new JLabel("Quick Overview / Task Tracker", JLabel.LEFT);
+        header.setFont(new Font("Arial", Font.BOLD, 22));
+        header.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        panel.add(header, BorderLayout.NORTH);
 
-        // Task List
-        taskListModel = new DefaultListModel<>();
-        if(taskListModel.isEmpty()) {
-            taskListModel.addElement("Review Class 12 Computer Science Syllabus");
-            taskListModel.addElement("Optimize Meta Ads Strategy for Zappify Store");
-            taskListModel.addElement("Check Persian Kitten's Hydration & Diet Plan");
-        }
-        
         JList<String> taskList = new JList<>(taskListModel);
         taskList.setFont(new Font("Arial", Font.PLAIN, 16));
-        taskList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         JScrollPane scrollPane = new JScrollPane(taskList);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder(0, 15, 10, 15));
+        scrollPane.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
         panel.add(scrollPane, BorderLayout.CENTER);
 
-        // Bottom Controls Panel
-        JPanel controlsPanel = new JPanel(new BorderLayout(10, 10));
-        controlsPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 15, 15));
-        controlsPanel.setOpaque(false);
+        JPanel inputPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 10));
+        inputPanel.setBackground(Color.WHITE);
+        
+        JLabel inputLabel = new JLabel("New Task:");
+        inputLabel.setFont(new Font("Arial", Font.PLAIN, 15));
+        JTextField taskField = new JTextField(25);
+        
+        JButton addButton = new JButton("Add Task");
+        JButton removeButton = new JButton("Remove Selected");
 
-        JTextField inputField = new JTextField();
-        inputField.setFont(new Font("Arial", Font.PLAIN, 16));
-
-        JPanel buttonGroup = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
-        buttonGroup.setOpaque(false);
-
-        JButton btnAdd = new JButton("Add Task");
-        JButton btnRemove = new JButton("Remove Selected");
-        btnAdd.setFont(new Font("Arial", Font.PLAIN, 14));
-        btnRemove.setFont(new Font("Arial", Font.PLAIN, 14));
-
-        buttonGroup.add(btnAdd);
-        buttonGroup.add(btnRemove);
-
-        controlsPanel.add(new JLabel("New Task: "), BorderLayout.WEST);
-        controlsPanel.add(inputField, BorderLayout.CENTER);
-        controlsPanel.add(buttonGroup, BorderLayout.EAST);
-        panel.add(controlsPanel, BorderLayout.SOUTH);
-
-        // Logic
-        btnAdd.addActionListener(e -> {
-            String text = inputField.getText().trim();
-            if (!text.isEmpty()) {
-                taskListModel.addElement(text);
-                inputField.setText("");
+        addButton.addActionListener(e -> {
+            String task = taskField.getText().trim();
+            if (!task.isEmpty()) {
+                taskListModel.addElement(task);
+                taskField.setText("");
+                saveTasksToFile();
+                updateAnalyticsMetrics();
             }
         });
 
-        btnRemove.addActionListener(e -> {
+        removeButton.addActionListener(e -> {
             int selectedIndex = taskList.getSelectedIndex();
             if (selectedIndex != -1) {
                 taskListModel.remove(selectedIndex);
-            } else {
-                JOptionPane.showMessageDialog(this, "Please select a task to remove!", "Tip", JOptionPane.INFORMATION_MESSAGE);
+                saveTasksToFile();
+                updateAnalyticsMetrics();
             }
         });
 
+        inputPanel.add(inputLabel);
+        inputPanel.add(taskField);
+        inputPanel.add(addButton);
+        inputPanel.add(removeButton);
+        panel.add(inputPanel, BorderLayout.SOUTH);
+
         return panel;
     }
 
-    // TAB 3: Advanced Analytics Panel (Calculates dynamically)
+    // --- TAB 3: ANALYTICS PANEL WITH LIVE PROGRESS BAR ---
     private JPanel createAnalyticsPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(activePanelColor);
-        
-        int totalTasks = (taskListModel != null) ? taskListModel.size() : 3;
-        
-        String statsText = "<html><center><h1 style='color:#2B2F3B;'>📊 Workspace Analytics</h1><br>" +
-                           "<p style='font-size:14px;'>Total Active Tasks Pending: <b>" + totalTasks + "</b></p><br>" +
-                           "<p style='font-size:12px; color:gray;'>Keep grinding! Complete your tasks to clear the board.</p></center></html>";
-        
-        JLabel statsLabel = new JLabel(statsText);
-        statsLabel.setFont(new Font("Arial", Font.PLAIN, 16));
-        panel.add(statsLabel);
+        panel.setBackground(Color.WHITE);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = GridBagConstraints.RELATIVE;
+        gbc.insets = new Insets(15, 15, 15, 15);
+
+        JLabel mainTitle = new JLabel("📊 Real-time Workspace Analytics", JLabel.CENTER);
+        mainTitle.setFont(new Font("Arial", Font.BOLD, 26));
+        panel.add(mainTitle, gbc);
+
+        pendingCountLabel = new JLabel("Active Tasks Currently Pending: 0", JLabel.CENTER);
+        pendingCountLabel.setFont(new Font("Arial", Font.BOLD, 18));
+        pendingCountLabel.setForeground(Color.RED);
+        panel.add(pendingCountLabel, gbc);
+
+        JLabel infoLabel = new JLabel("Fewer pending tasks ensures high workspace optimization scores.", JLabel.CENTER);
+        infoLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        infoLabel.setForeground(Color.GRAY);
+        panel.add(infoLabel, gbc);
+
+        efficiencyBar = new JProgressBar(0, 100);
+        efficiencyBar.setPreferredSize(new Dimension(300, 25));
+        efficiencyBar.setStringPainted(true);
+        panel.add(efficiencyBar, gbc);
+
         return panel;
     }
 
-    // TAB 4: Settings / UI Customization Panel
+    // --- TAB 4: SETTINGS THEME CONTROL PANEL ---
     private JPanel createSettingsPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 50));
-        panel.setBackground(activePanelColor);
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 30, 30));
+        panel.setBackground(Color.WHITE);
 
-        JLabel themeLabel = new JLabel("Choose Workspace Theme: ");
-        themeLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        themeLabel.setForeground(textColor);
+        JLabel label = new JLabel("Choose Workspace Theme:");
+        label.setFont(new Font("Arial", Font.BOLD, 16));
+        panel.add(label);
 
-        JButton btnDark = new JButton("Classic Dark Sidebar");
-        JButton btnBlue = new JButton("Ocean Blue Sidebar");
+        JButton darkBtn = new JButton("Classic Dark Sidebar");
+        JButton blueBtn = new JButton("Ocean Blue Sidebar");
 
-        panel.add(themeLabel);
-        panel.add(btnDark);
-        panel.add(btnBlue);
-
-        // Theme switching engine
-        btnDark.addActionListener(e -> {
-            sidebarColor = new Color(43, 47, 59);
-            JOptionPane.showMessageDialog(this, "Sidebar set to Dark! Restart App to apply fully.", "Theme Updated", JOptionPane.INFORMATION_MESSAGE);
-        });
-
-        btnBlue.addActionListener(e -> {
-            sidebarColor = new Color(24, 116, 205);
-            JOptionPane.showMessageDialog(this, "Sidebar set to Ocean Blue! Restart App to apply fully.", "Theme Updated", JOptionPane.INFORMATION_MESSAGE);
-        });
+        panel.add(darkBtn);
+        panel.add(blueBtn);
 
         return panel;
+    }
+
+    // --- AUTOMATIC BACKGROUND CORE ENGINE ENGINES ---
+    private void startClockEngine() {
+        Thread clockThread = new Thread(() -> {
+            SimpleDateFormat sdf = new SimpleDateFormat("dd MMM yyyy | hh:mm:ss a");
+            while (true) {
+                try {
+                    String currentTicks = sdf.format(new Date());
+                    SwingUtilities.invokeLater(() -> clockLabel.setText(currentTicks));
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        });
+        clockThread.setDaemon(true);
+        clockThread.start();
+    }
+
+    // --- TAB 3: ANALYTICS PANEL ENGINE (FIXED DYNAMIC RE-RENDER) ---
+    private void updateAnalyticsMetrics() {
+        int activeTasks = taskListModel.size();
+        if (pendingCountLabel != null && efficiencyBar != null) {
+            pendingCountLabel.setText("Active Tasks Currently Pending: " + activeTasks);
+            
+            int efficiencyScore = Math.max(0, 100 - (activeTasks * 10));
+            efficiencyBar.setValue(efficiencyScore);
+            efficiencyBar.setString("Workspace Efficiency: " + efficiencyScore + "%");
+        }
+    }
+
+    private void saveTasksToFile() {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(FILE_PATH))) {
+            for (int i = 0; i < taskListModel.size(); i++) {
+                writer.println(taskListModel.get(i));
+            }
+        } catch (IOException e) {
+            System.out.println("Storage backup writing pipeline failure.");
+        }
+    }
+
+    private void loadTasksFromFile() {
+        File file = new File(FILE_PATH);
+        if (!file.exists()) return;
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                taskListModel.addElement(line);
+            }
+        } catch (IOException e) {
+            System.out.println("Storage recovery pipeline failure.");
+        }
     }
 }
