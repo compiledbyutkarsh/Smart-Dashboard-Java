@@ -20,16 +20,16 @@ public class MainFrame extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        // Core Layout Setup
+        
         setLayout(new BorderLayout());
         cardLayout = new CardLayout();
         mainContentPanel = new JPanel(cardLayout);
 
-        // Task Data Model & Persistence
+        
         taskListModel = new DefaultListModel<>();
         loadTasksFromFile();
 
-        // 1. Sidebar Panel Navigation
+        
         JPanel sidebar = new JPanel();
         sidebar.setBackground(new Color(43, 47, 54));
         sidebar.setPreferredSize(new Dimension(220, 600));
@@ -51,7 +51,7 @@ public class MainFrame extends JFrame {
 
         add(sidebar, BorderLayout.WEST);
 
-        // 2. Individual Sub-Panels Creation
+        
         mainContentPanel.add(createDashboardPanel(), "DashboardPanel");
         mainContentPanel.add(createTasksPanel(), "TasksPanel");
         mainContentPanel.add(createAnalyticsPanel(), "AnalyticsPanel");
@@ -59,7 +59,7 @@ public class MainFrame extends JFrame {
 
         add(mainContentPanel, BorderLayout.CENTER);
 
-        // Start Live Clock Thread Engine
+        
         startClockEngine();
         updateAnalyticsMetrics();
     }
@@ -73,7 +73,7 @@ public class MainFrame extends JFrame {
         return btn;
     }
 
-    // --- TAB 1: DASHBOARD PANEL WITH LIVE CLOCK (FIXED HTML) ---
+    
     private JPanel createDashboardPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBackground(Color.WHITE);
@@ -98,7 +98,7 @@ public class MainFrame extends JFrame {
         return panel;
     }
 
-    // --- TAB 2: TASKS TRACKER WITH LOCAL STORAGE ---
+    
     private JPanel createTasksPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(Color.WHITE);
@@ -152,7 +152,7 @@ public class MainFrame extends JFrame {
         return panel;
     }
 
-    // --- TAB 3: ANALYTICS PANEL WITH LIVE PROGRESS BAR ---
+    
     private JPanel createAnalyticsPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBackground(Color.WHITE);
@@ -183,7 +183,7 @@ public class MainFrame extends JFrame {
         return panel;
     }
 
-    // --- TAB 4: SETTINGS THEME CONTROL PANEL ---
+    
     private JPanel createSettingsPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 30, 30));
         panel.setBackground(Color.WHITE);
@@ -201,7 +201,7 @@ public class MainFrame extends JFrame {
         return panel;
     }
 
-    // --- AUTOMATIC BACKGROUND CORE ENGINE ENGINES ---
+    
     private void startClockEngine() {
         Thread clockThread = new Thread(() -> {
             SimpleDateFormat sdf = new SimpleDateFormat("dd MMM yyyy | hh:mm:ss a");
@@ -219,7 +219,7 @@ public class MainFrame extends JFrame {
         clockThread.start();
     }
 
-    // --- TAB 3: ANALYTICS PANEL ENGINE (FIXED DYNAMIC RE-RENDER) ---
+    
     private void updateAnalyticsMetrics() {
         int activeTasks = taskListModel.size();
         if (pendingCountLabel != null && efficiencyBar != null) {
